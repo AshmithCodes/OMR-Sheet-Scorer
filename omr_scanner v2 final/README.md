@@ -1,3 +1,4 @@
+<img width="1064" height="1243" alt="7EE53DC1-2811-4E44-B6A8-B4F64B24D1AF_1_201_a" src="https://github.com/user-attachments/assets/aca7472a-3472-49ab-9177-dce0c0545529" />
 # OMR Sheet Scanner
 
 Upload a filled-in student answer sheet and a marked key sheet (same
