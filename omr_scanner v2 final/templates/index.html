@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OMR Sheet Scanner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <div class="reg-mark reg-mark--tl" aria-hidden="true"></div>
+    <div class="reg-mark reg-mark--tr" aria-hidden="true"></div>
+    <p class="eyebrow">FORM 01-OMR &middot; AUTOMATIC GRADING</p>
+    <h1>OMR Sheet Scanner</h1>
+    <p class="lede">Upload a filled student sheet and a marked key sheet. We straighten the
+      photo, locate every bubble, and grade it &mdash; skewed, tilted, or badly lit.</p>
+  </header>
+
+  <form id="scan-form" class="card">
+    <div class="reg-mark reg-mark--tl" aria-hidden="true"></div>
+    <div class="reg-mark reg-mark--tr" aria-hidden="true"></div>
+    <div class="reg-mark reg-mark--bl" aria-hidden="true"></div>
+    <div class="reg-mark reg-mark--br" aria-hidden="true"></div>
+
+    <div class="dropzone-row">
+      <label class="dropzone" for="student_sheet" data-role="Student">
+        <span class="dropzone-label">01 &middot; Student's answer sheet</span>
+        <span class="dropzone-body">
+          <span class="dropzone-icon">&#9635;</span>
+          <span class="dropzone-text" data-default="Choose photo or drop it here">Choose photo or drop it here</span>
+        </span>
+        <input type="file" id="student_sheet" name="student_sheet" accept="image/*" required>
+      </label>
+
+      <label class="dropzone" for="key_sheet" data-role="Key">
+        <span class="dropzone-label">02 &middot; Key sheet (already marked, same template)</span>
+        <span class="dropzone-body">
+          <span class="dropzone-icon">&#9635;</span>
+          <span class="dropzone-text" data-default="Choose photo or drop it here">Choose photo or drop it here</span>
+        </span>
+        <input type="file" id="key_sheet" name="key_sheet" accept="image/*" required>
+      </label>
+    </div>
+
+    <details class="advanced">
+      <summary>Advanced &middot; sheet template</summary>
+
+      <div class="advanced-grid">
+        <label class="field">
+          <span>Options per question</span>
+          <select name="options_per_question" id="options_per_question">
+            <option value="ABCD" selected>A &ndash; D</option>
+            <option value="ABCDE">A &ndash; E</option>
+            <option value="ABC">A &ndash; C</option>
+            <option value="AB">A &ndash; B (True/False)</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>Column blocks</span>
+          <input type="number" name="columns" id="columns" min="1" max="6" placeholder="auto">
+        </label>
+
+        <label class="field">
+          <span>Total questions</span>
+          <input type="number" name="num_questions" id="num_questions" min="1" placeholder="auto">
+        </label>
+
+        <label class="field field--checkbox">
+          <input type="checkbox" name="corner_markers" id="corner_markers">
+          <span>Sheet prints 4 corner registration squares</span>
+        </label>
+
+        <label class="field">
+          <span>Header crop (top %, ignored)</span>
+          <input type="number" name="header_fraction" id="header_fraction" min="0" max="80" placeholder="0" step="1">
+        </label>
+
+        <label class="field">
+          <span>Footer crop (bottom %, ignored)</span>
+          <input type="number" name="footer_fraction" id="footer_fraction" min="0" max="80" placeholder="0" step="1">
+        </label>
+      </div>
+
+      <label class="field field--json">
+        <span>Or paste a full template JSON (overrides fields above)</span>
+        <textarea name="template_json" id="template_json" rows="3"
+          placeholder='{"num_questions": 60, "options": "ABCDE", "columns": 3, "corner_markers": true}'></textarea>
+      </label>
+    </details>
+
+    <button type="submit" class="btn-primary" id="submit-btn">
+      <span class="btn-label">Scan &amp; Score</span>
+      <span class="btn-spinner" hidden></span>
+    </button>
+
+    <p class="form-error" id="form-error" hidden></p>
+  </form>
+
+  <section class="card results" id="results" hidden>
+    <div class="reg-mark reg-mark--tl" aria-hidden="true"></div>
+    <div class="reg-mark reg-mark--tr" aria-hidden="true"></div>
+
+    <div class="results-head">
+      <div>
+        <p class="eyebrow">Results</p>
+        <p class="score-big" id="score-percent">0%</p>
+      </div>
+      <dl class="score-tally">
+        <div class="tally correct"><dt>Correct</dt><dd id="tally-correct">0</dd></div>
+        <div class="tally incorrect"><dt>Incorrect</dt><dd id="tally-incorrect">0</dd></div>
+        <div class="tally unanswered"><dt>Unanswered</dt><dd id="tally-unanswered">0</dd></div>
+      </dl>
+    </div>
+
+    <div id="warnings" class="warnings" hidden></div>
+
+    <button type="button" class="btn-secondary" id="view-annotated-btn">View annotated sheet</button>
+
+    <table class="results-table">
+      <thead>
+        <tr><th>Q#</th><th>Student</th><th>Key</th><th>Result</th></tr>
+      </thead>
+      <tbody id="results-body"></tbody>
+    </table>
+  </section>
+
+</div>
+
+<div class="modal" id="annotated-modal" hidden>
+  <div class="modal-backdrop" id="modal-backdrop"></div>
+  <div class="modal-panel">
+    <button type="button" class="modal-close" id="modal-close" aria-label="Close">&times;</button>
+    <p class="eyebrow">Annotated result</p>
+    <p class="modal-legend">
+      <span class="dot dot--correct"></span> Correct
+      <span class="dot dot--incorrect"></span> Incorrect
+      <span class="dot dot--unanswered"></span> Unanswered / ambiguous
+    </p>
+    <div class="modal-image-wrap">
+      <img id="annotated-image" alt="Annotated student sheet">
+    </div>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
